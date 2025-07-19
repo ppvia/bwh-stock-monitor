@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搬瓦工库存监控 - 管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #333; margin-bottom: 10px; }
+        .nav { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .nav a { color: #007cba; text-decoration: none; margin: 0 15px; padding: 8px 16px; border-radius: 4px; }
+        .nav a:hover { background: #f0f8ff; }
+        .nav a.active { background: #007cba; color: white; }
+        
+        .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .section h3 { color: #333; margin-bottom: 15px; border-bottom: 2px solid #007cba; padding-bottom: 5px; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .form-group textarea { height: 80px; resize: vertical; }
+        
+        .btn { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .btn:hover { background: #005a87; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        
+        .products-table { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: bold; }
+        
+        .status-in-stock { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-out-of-stock { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-checking { background: #ffc107; color: black; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        
+        .loading { text-align: center; padding: 20px; color: #666; }
+        .message { padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        .url-input { font-family: monospace; font-size: 14px; }
+        .product-row { border-left: 4px solid #007cba; }
+        .product-row.out-of-stock { border-left-color: #dc3545; }
+        .product-row.in-stock { border-left-color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>搬瓦工库存监控 - 管理后台</h1>
+            <p>添加、删除和管理监控的产品链接</p>
+        </div>
+        
+        <div class="nav">
+            <a href="/" target="_blank">返回主页</a>
+            <a href="#add-product" class="active">添加产品</a>
+            <a href="#manage-products">管理产品</a>
+            <a href="#test-monitoring">测试监控</a>
+        </div>
+        
+        <div id="message-container"></div>
+        
+        <!-- 添加产品 -->
+        <div class="section" id="add-product-section">
+            <h3>添加新的监控产品</h3>
+            <form id="addProductForm">
+                <div class="form-group">
+                    <label for="productName">产品名称：</label>
+                    <input type="text" id="productName" name="productName" required placeholder="例如：搬瓦工CN2 GIA-E 2GB">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productUrl">监控网址：</label>
+                    <input type="url" id="productUrl" name="productUrl" class="url-input" required 
+                           placeholder="例如：https://bwh81.net/aff.php?aff=&pid=88">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productCpu">CPU核心：</label>
+                    <input type="text" id="productCpu" name="productCpu" placeholder="例如：3核">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productMemory">内存大小：</label>
+                    <input type="text" id="productMemory" name="productMemory" placeholder="例如：2 GB">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productStorage">存储空间：</label>
+                    <input type="text" id="productStorage" name="productStorage" placeholder="例如：40 GB">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productBandwidth">月流量：</label>
+                    <input type="text" id="productBandwidth" name="productBandwidth" placeholder="例如：2000 GB">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productSpeed">网络带宽：</label>
+                    <input type="text" id="productSpeed" name="productSpeed" placeholder="例如：2.5 Gbps">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productLocation">机房位置：</label>
+                    <input type="text" id="productLocation" name="productLocation" placeholder="例如：搬瓦工CN2 GIA-E">
+                </div>
+                
+                <div class="form-group">
+                    <label for="productPrice">价格/年：</label>
+                    <input type="text" id="productPrice" name="productPrice" placeholder="例如：$289.99">
+                </div>
+                
+                <button type="submit" class="btn btn-success">添加产品</button>
+                <button type="button" class="btn" onclick="testUrl()">测试网址</button>
+            </form>
+        </div>
+        
+        <!-- 管理产品 -->
+        <div class="section" id="manage-products-section">
+            <h3>当前监控的产品</h3>
+            <div class="loading" id="products-loading">正在加载产品列表...</div>
+            <div class="products-table" id="products-table" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>产品名称</th>
+                            <th>监控网址</th>
+                            <th>CPU</th>
+                            <th>内存</th>
+                            <th>存储</th>
+                            <th>流量</th>
+                            <th>带宽</th>
+                            <th>机房</th>
+                            <th>价格</th>
+                            <th>库存状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-tbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 测试监控 -->
+        <div class="section" id="test-monitoring-section">
+            <h3>测试监控逻辑</h3>
+            <div class="form-group">
+                <label for="testUrl">测试网址：</label>
+                <input type="url" id="testUrl" class="url-input" placeholder="输入要测试的网址">
+            </div>
+            <button type="button" class="btn" onclick="testSingleUrl()">测试单个网址</button>
+            <button type="button" class="btn btn-success" onclick="testAllProducts()">测试所有产品</button>
+            
+            <div id="test-results" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 显示消息
+        function showMessage(message, type = 'success') {
+            const container = document.getElementById('message-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            container.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                container.removeChild(messageDiv);
+            }, 5000);
+        }
+        
+        // 加载产品列表
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/admin/products');
+                const products = await response.json();
+                
+                const tbody = document.getElementById('products-tbody');
+                tbody.innerHTML = '';
+                
+                products.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.className = `product-row ${product.inStock ? 'in-stock' : 'out-of-stock'}`;
+                    row.innerHTML = `
+                        <td>${product.name}</td>
+                        <td><a href="${product.monitorUrl}" target="_blank" style="font-family: monospace; font-size: 12px;">${product.monitorUrl}</a></td>
+                        <td>${product.cpu || '-'}</td>
+                        <td>${product.memory || '-'}</td>
+                        <td>${product.storage || '-'}</td>
+                        <td>${product.bandwidth || '-'}</td>
+                        <td>${product.speed || '-'}</td>
+                        <td>${product.location || '-'}</td>
+                        <td>${product.price || '-'}</td>
+                        <td>
+                            <span class="${product.inStock ? 'status-in-stock' : 'status-out-of-stock'}">
+                                ${product.inStock ? '有库存' : '缺货'}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" onclick="deleteProduct('${product.id}')">删除</button>
+                            <button class="btn" onclick="testProduct('${product.id}')">测试</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                document.getElementById('products-loading').style.display = 'none';
+                document.getElementById('products-table').style.display = 'block';
+            } catch (error) {
+                console.error('加载产品失败:', error);
+                showMessage('加载产品列表失败', 'error');
+            }
+        }
+        
+        // 添加产品
+        document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const productData = {
+                name: formData.get('productName'),
+                monitorUrl: formData.get('productUrl'),
+                cpu: formData.get('productCpu'),
+                memory: formData.get('productMemory'),
+                storage: formData.get('productStorage'),
+                bandwidth: formData.get('productBandwidth'),
+                speed: formData.get('productSpeed'),
+                location: formData.get('productLocation'),
+                price: formData.get('productPrice')
+            };
+            
+            try {
+                const response = await fetch('/api/admin/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('产品添加成功！');
+                    e.target.reset();
+                    loadProducts();
+                } else {
+                    showMessage('添加失败：' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('添加失败，请稍后重试', 'error');
+            }
+        });
+        
+        // 删除产品
+        async function deleteProduct(productId) {
+            if (!confirm('确定要删除这个产品吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/products/${productId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('产品删除成功！');
+                    loadProducts();
+                } else {
+                    showMessage('删除失败：' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('删除失败，请稍后重试', 'error');
+            }
+        }
+        
+        // 测试单个网址
+        async function testUrl() {
+            const url = document.getElementById('productUrl').value;
+            if (!url) {
+                showMessage('请输入要测试的网址', 'error');
+                return;
+            }
+            
+            await testSingleUrlInternal(url);
+        }
+        
+        async function testSingleUrl() {
+            const url = document.getElementById('testUrl').value;
+            if (!url) {
+                showMessage('请输入要测试的网址', 'error');
+                return;
+            }
+            
+            await testSingleUrlInternal(url);
+        }
+        
+        async function testSingleUrlInternal(url) {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="loading">正在测试...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/test-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="message ${result.inStock ? 'success' : 'error'}">
+                            <strong>测试结果：</strong>${result.inStock ? '有库存' : '缺货'}<br>
+                            <strong>最终URL：</strong>${result.finalUrl}<br>
+                            <strong>响应时间：</strong>${result.responseTime}ms<br>
+                            <strong>检测逻辑：</strong>${result.hasOutOfStockElement ? '发现缺货元素' : '未发现缺货元素'}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="message error">测试失败：${result.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="message error">测试失败：网络错误</div>`;
+            }
+        }
+        
+        // 测试产品
+        async function testProduct(productId) {
+            try {
+                const response = await fetch(`/api/admin/test-product/${productId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage(`测试完成：${result.inStock ? '有库存' : '缺货'}`);
+                    loadProducts();
+                } else {
+                    showMessage('测试失败：' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('测试失败，请稍后重试', 'error');
+            }
+        }
+        
+        // 测试所有产品
+        async function testAllProducts() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="loading">正在测试所有产品...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/test-all', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    let html = '<h4>测试结果：</h4>';
+                    result.results.forEach(item => {
+                        html += `
+                            <div class="message ${item.inStock ? 'success' : 'error'}">
+                                <strong>${item.name}：</strong>${item.inStock ? '有库存' : '缺货'}
+                                ${item.error ? `<br><small>错误：${item.error}</small>` : ''}
+                            </div>
+                        `;
+                    });
+                    resultsDiv.innerHTML = html;
+                    loadProducts();
+                } else {
+                    resultsDiv.innerHTML = `<div class="message error">测试失败：${result.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="message error">测试失败：网络错误</div>`;
+            }
+        }
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts();
+        });
+    </script>
+</body>
+</html>

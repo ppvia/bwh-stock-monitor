@@ -1,0 +1,17 @@
+name = "bandwagonhost-monitor"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[env.production]
+name = "bandwagonhost-monitor"
+
+[[kv_namespaces]]
+binding = "MONITOR_KV"
+id = "bc6d95eac609447b8d4a07995ff88e38"
+preview_id = "d1c18ac9211b4f26a7518845712f2b66"
+
+[vars]
+ADMIN_EMAIL = "2dbfun@gmail.com"
+
+[triggers]
+crons = ["*/10 * * * *"]  # 每10分钟检查一次库存

@@ -1,0 +1,19 @@
+{
+  "name": "bandwagonhost-monitor",
+  "version": "1.0.0",
+  "description": "搬瓦工库存监控系统",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "npm run build:worker && npm run build:pages",
+    "build:worker": "wrangler deploy --dry-run",
+    "build:pages": "npm run generate-static"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
