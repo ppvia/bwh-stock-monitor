@@ -1,5 +1,6 @@
 // 简单的测试脚本，用于验证系统功能
 const { execSync } = require('child_process');
+const fs = require('fs');
 
 console.log('🧪 搬瓦工库存监控系统测试');
 console.log('========================');
@@ -7,8 +8,6 @@ console.log('========================');
 // 测试1: 检查配置文件
 console.log('1. 检查配置文件...');
 try {
-  const fs = require('fs');
-  
   // 检查必要文件是否存在
   const requiredFiles = [
     'wrangler.toml',
@@ -32,7 +31,8 @@ try {
 // 测试2: 检查产品数据格式
 console.log('2. 检查产品数据格式...');
 try {
-  const products = require('./src/products.json');
+  const productsData = fs.readFileSync('./src/products.json', 'utf8');
+  const products = JSON.parse(productsData);
   
   if (!products.products || !Array.isArray(products.products)) {
     throw new Error('产品数据格式错误');
@@ -70,7 +70,6 @@ try {
 // 测试4: 检查Wrangler配置
 console.log('4. 检查Wrangler配置...');
 try {
-  const fs = require('fs');
   const wranglerConfig = fs.readFileSync('wrangler.toml', 'utf8');
   
   // 检查必要的配置项
