@@ -1,44 +1,44 @@
 // Cloudflare Worker 主入口文件
 export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    
-    // 处理不同的路由
-    if (url.pathname === '/') {
-      return handleHomePage(request, env);
-    } else if (url.pathname === '/admin') {
-      return handleAdminPage(request, env);
-    } else if (url.pathname === '/api/subscribe' && request.method === 'POST') {
-      return handleSubscribe(request, env);
-    } else if (url.pathname === '/api/products') {
-      return handleGetProducts(request, env);
-    } else if (url.pathname === '/api/check-stock') {
-      return handleCheckStock(request, env);
-    } else if (url.pathname === '/api/admin/products') {
-      if (request.method === 'GET') {
-        return handleAdminGetProducts(request, env);
-      } else if (request.method === 'POST') {
-        return handleAdminAddProduct(request, env);
-      }
-    } else if (url.pathname.startsWith('/api/admin/products/') && request.method === 'DELETE') {
-      const productId = url.pathname.split('/').pop();
-      return handleAdminDeleteProduct(request, env, productId);
-    } else if (url.pathname === '/api/admin/test-url' && request.method === 'POST') {
-      return handleAdminTestUrl(request, env);
-    }
-    
-    return new Response('Not Found', { status: 404 });
-  },
+    async fetch(request, env, ctx) {
+        const url = new URL(request.url);
 
-  async scheduled(event, env, ctx) {
-    // 定时任务：检查库存并发送通知
-    ctx.waitUntil(checkStockAndNotify(env));
-  }
+        // 处理不同的路由
+        if (url.pathname === '/') {
+            return handleHomePage(request, env);
+        } else if (url.pathname === '/admin') {
+            return handleAdminPage(request, env);
+        } else if (url.pathname === '/api/subscribe' && request.method === 'POST') {
+            return handleSubscribe(request, env);
+        } else if (url.pathname === '/api/products') {
+            return handleGetProducts(request, env);
+        } else if (url.pathname === '/api/check-stock') {
+            return handleCheckStock(request, env);
+        } else if (url.pathname === '/api/admin/products') {
+            if (request.method === 'GET') {
+                return handleAdminGetProducts(request, env);
+            } else if (request.method === 'POST') {
+                return handleAdminAddProduct(request, env);
+            }
+        } else if (url.pathname.startsWith('/api/admin/products/') && request.method === 'DELETE') {
+            const productId = url.pathname.split('/').pop();
+            return handleAdminDeleteProduct(request, env, productId);
+        } else if (url.pathname === '/api/admin/test-url' && request.method === 'POST') {
+            return handleAdminTestUrl(request, env);
+        }
+
+        return new Response('Not Found', { status: 404 });
+    },
+
+    async scheduled(event, env, ctx) {
+        // 定时任务：检查库存并发送通知
+        ctx.waitUntil(checkStockAndNotify(env));
+    }
 };
 
 // 处理首页请求
 async function handleHomePage(request, env) {
-  const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -209,15 +209,15 @@ async function handleHomePage(request, env) {
     </script>
 </body>
 </html>`;
-  
-  return new Response(html, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
-  });
+
+    return new Response(html, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
 }
 
 // 处理管理页面请求
 async function handleAdminPage(request, env) {
-  const adminHtml = `<!DOCTYPE html>
+    const adminHtml = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -481,272 +481,272 @@ async function handleAdminPage(request, env) {
     </script>
 </body>
 </html>`;
-  
-  return new Response(adminHtml, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
-  });
+
+    return new Response(adminHtml, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
 }
 
 // 处理订阅请求
 async function handleSubscribe(request, env) {
-  try {
-    const { email, product } = await request.json();
-    
-    if (!email || !product) {
-      return new Response(JSON.stringify({ error: '邮箱和产品不能为空' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    try {
+        const { email, product } = await request.json();
+
+        if (!email || !product) {
+            return new Response(JSON.stringify({ error: '邮箱和产品不能为空' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return new Response(JSON.stringify({ error: '邮箱格式不正确' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const subscriptionKey = `subscription:${email}:${product}`;
+        const subscriptionData = {
+            email,
+            product,
+            subscribedAt: new Date().toISOString(),
+            active: true
+        };
+
+        await env.MONITOR_KV.put(subscriptionKey, JSON.stringify(subscriptionData));
+
+        const userSubscriptionsKey = `user:${email}`;
+        let userSubscriptions = [];
+        const existingData = await env.MONITOR_KV.get(userSubscriptionsKey);
+        if (existingData) {
+            userSubscriptions = JSON.parse(existingData);
+        }
+
+        if (!userSubscriptions.includes(product)) {
+            userSubscriptions.push(product);
+            await env.MONITOR_KV.put(userSubscriptionsKey, JSON.stringify(userSubscriptions));
+        }
+
+        return new Response(JSON.stringify({ success: true, message: '订阅成功' }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: '服务器错误' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return new Response(JSON.stringify({ error: '邮箱格式不正确' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    const subscriptionKey = `subscription:${email}:${product}`;
-    const subscriptionData = {
-      email,
-      product,
-      subscribedAt: new Date().toISOString(),
-      active: true
-    };
-    
-    await env.MONITOR_KV.put(subscriptionKey, JSON.stringify(subscriptionData));
-    
-    const userSubscriptionsKey = `user:${email}`;
-    let userSubscriptions = [];
-    const existingData = await env.MONITOR_KV.get(userSubscriptionsKey);
-    if (existingData) {
-      userSubscriptions = JSON.parse(existingData);
-    }
-    
-    if (!userSubscriptions.includes(product)) {
-      userSubscriptions.push(product);
-      await env.MONITOR_KV.put(userSubscriptionsKey, JSON.stringify(userSubscriptions));
-    }
-    
-    return new Response(JSON.stringify({ success: true, message: '订阅成功' }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: '服务器错误' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
 }
 
 // 获取产品列表和库存状态
 async function handleGetProducts(request, env) {
-  try {
-    const cachedData = await env.MONITOR_KV.get('products:cache');
-    let products = [];
-    
-    if (cachedData) {
-      products = JSON.parse(cachedData);
-    } else {
-      const customProductsData = await env.MONITOR_KV.get('custom:products');
-      products = customProductsData ? JSON.parse(customProductsData) : getDefaultProducts();
-      updateProductStockNew(env);
+    try {
+        const cachedData = await env.MONITOR_KV.get('products:cache');
+        let products = [];
+
+        if (cachedData) {
+            products = JSON.parse(cachedData);
+        } else {
+            const customProductsData = await env.MONITOR_KV.get('custom:products');
+            products = customProductsData ? JSON.parse(customProductsData) : getDefaultProducts();
+            updateProductStockNew(env);
+        }
+
+        return new Response(JSON.stringify(products), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: '获取产品信息失败' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-    
-    return new Response(JSON.stringify(products), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: '获取产品信息失败' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
 }
 
 // 手动检查库存
 async function handleCheckStock(request, env) {
-  try {
-    await updateProductStockNew(env);
-    return new Response(JSON.stringify({ success: true, message: '库存检查完成' }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: '检查库存失败' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
+    try {
+        await updateProductStockNew(env);
+        return new Response(JSON.stringify({ success: true, message: '库存检查完成' }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: '检查库存失败' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
 }
 
 // 获取默认产品列表
 function getDefaultProducts() {
-  return [
-    {
-      id: 'bwh1g-vz-promo',
-      name: '搬瓦工1GB-VZ-PROMO套餐',
-      cpu: '2核',
-      memory: '2048 MB',
-      storage: '40 GB',
-      bandwidth: '2000 GB',
-      speed: '2.5 Gbps',
-      location: '搬瓦工DC6-PROMO',
-      price: '$49.00',
-      buyUrl: 'https://bandwagonhost.com/cart.php?a=add&pid=87',
-      inStock: false
-    },
-    {
-      id: 'bwh2g-vz-promo',
-      name: '搬瓦工2GB-VZ-PROMO套餐',
-      cpu: '1核',
-      memory: '1024 MB',
-      storage: '20 GB',
-      bandwidth: '1000 GB',
-      speed: '2.5 Gbps',
-      location: '搬瓦工DC6-PROMO',
-      price: '$35.00',
-      buyUrl: 'https://bandwagonhost.com/cart.php?a=add&pid=44',
-      inStock: false
-    },
-    {
-      id: 'bwh3g-sakura',
-      name: '搬瓦工3GB-SAKURA套餐',
-      cpu: '1核',
-      memory: '1024 MB',
-      storage: '30 GB',
-      bandwidth: '800 GB',
-      speed: '1 Gbps',
-      location: '搬瓦工SAKURA',
-      price: '$78.00',
-      buyUrl: 'https://bandwagonhost.com/cart.php?a=add&pid=57',
-      inStock: true
-    }
-  ];
+    return [
+        {
+            id: 'bwh1g-vz-promo',
+            name: '搬瓦工1GB-VZ-PROMO套餐',
+            cpu: '2核',
+            memory: '2048 MB',
+            storage: '40 GB',
+            bandwidth: '2000 GB',
+            speed: '2.5 Gbps',
+            location: '搬瓦工DC6-PROMO',
+            price: '$49.00',
+            buyUrl: 'https://bandwagonhost.com/cart.php?a=add&pid=87',
+            inStock: false
+        },
+        {
+            id: 'bwh2g-vz-promo',
+            name: '搬瓦工2GB-VZ-PROMO套餐',
+            cpu: '1核',
+            memory: '1024 MB',
+            storage: '20 GB',
+            bandwidth: '1000 GB',
+            speed: '2.5 Gbps',
+            location: '搬瓦工DC6-PROMO',
+            price: '$35.00',
+            buyUrl: 'https://bandwagonhost.com/cart.php?a=add&pid=44',
+            inStock: false
+        },
+        {
+            id: 'bwh3g-sakura',
+            name: '搬瓦工3GB-SAKURA套餐',
+            cpu: '1核',
+            memory: '1024 MB',
+            storage: '30 GB',
+            bandwidth: '800 GB',
+            speed: '1 Gbps',
+            location: '搬瓦工SAKURA',
+            price: '$78.00',
+            buyUrl: 'https://bandwagonhost.com/cart.php?a=add&pid=57',
+            inStock: true
+        }
+    ];
 }
 
 // 新的库存检查逻辑
 async function checkProductStockNew(monitorUrl) {
-  try {
-    const response = await fetch(monitorUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      },
-      redirect: 'follow'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    try {
+        const response = await fetch(monitorUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            redirect: 'follow'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const html = await response.text();
+        const finalUrl = response.url;
+
+        const outOfStockElement = '<div class="errorbox" style="display:block;">Out of Stock</div>';
+        const hasOutOfStockElement = html.includes(outOfStockElement);
+
+        const inStock = !hasOutOfStockElement;
+
+        return {
+            inStock,
+            finalUrl,
+            hasOutOfStockElement
+        };
+    } catch (error) {
+        console.error('检查库存时出错:', error);
+        throw error;
     }
-    
-    const html = await response.text();
-    const finalUrl = response.url;
-    
-    const outOfStockElement = '<div class="errorbox" style="display:block;">Out of Stock</div>';
-    const hasOutOfStockElement = html.includes(outOfStockElement);
-    
-    const inStock = !hasOutOfStockElement;
-    
-    return {
-      inStock,
-      finalUrl,
-      hasOutOfStockElement
-    };
-  } catch (error) {
-    console.error('检查库存时出错:', error);
-    throw error;
-  }
 }
 
 // 更新产品库存状态
 async function updateProductStockNew(env) {
-  try {
-    const customProductsData = await env.MONITOR_KV.get('custom:products');
-    let products = customProductsData ? JSON.parse(customProductsData) : getDefaultProducts();
-    
-    const stockPromises = products.map(async (product) => {
-      try {
-        const monitorUrl = product.monitorUrl || product.buyUrl;
-        const result = await checkProductStockNew(monitorUrl);
-        return { ...product, inStock: result.inStock };
-      } catch (error) {
-        console.error(`检查产品 ${product.id} 库存失败:`, error);
-        return { ...product, inStock: false };
-      }
-    });
-    
-    const updatedProducts = await Promise.all(stockPromises);
-    
-    await env.MONITOR_KV.put('products:cache', JSON.stringify(updatedProducts), {
-      expirationTtl: 300
-    });
-    
-    return updatedProducts;
-  } catch (error) {
-    console.error('更新库存状态失败:', error);
-    throw error;
-  }
+    try {
+        const customProductsData = await env.MONITOR_KV.get('custom:products');
+        let products = customProductsData ? JSON.parse(customProductsData) : getDefaultProducts();
+
+        const stockPromises = products.map(async (product) => {
+            try {
+                const monitorUrl = product.monitorUrl || product.buyUrl;
+                const result = await checkProductStockNew(monitorUrl);
+                return { ...product, inStock: result.inStock };
+            } catch (error) {
+                console.error(`检查产品 ${product.id} 库存失败:`, error);
+                return { ...product, inStock: false };
+            }
+        });
+
+        const updatedProducts = await Promise.all(stockPromises);
+
+        await env.MONITOR_KV.put('products:cache', JSON.stringify(updatedProducts), {
+            expirationTtl: 300
+        });
+
+        return updatedProducts;
+    } catch (error) {
+        console.error('更新库存状态失败:', error);
+        throw error;
+    }
 }
 
 // 定时任务：检查库存并发送通知
 async function checkStockAndNotify(env) {
-  try {
-    console.log('开始检查库存...');
-    
-    const previousDataStr = await env.MONITOR_KV.get('products:cache');
-    const previousProducts = previousDataStr ? JSON.parse(previousDataStr) : [];
-    const previousStockMap = new Map(previousProducts.map(p => [p.id, p.inStock]));
-    
-    const currentProducts = await updateProductStockNew(env);
-    
-    for (const product of currentProducts) {
-      const previousStock = previousStockMap.get(product.id);
-      
-      if (!previousStock && product.inStock) {
-        await notifySubscribers(env, product);
-      }
+    try {
+        console.log('开始检查库存...');
+
+        const previousDataStr = await env.MONITOR_KV.get('products:cache');
+        const previousProducts = previousDataStr ? JSON.parse(previousDataStr) : [];
+        const previousStockMap = new Map(previousProducts.map(p => [p.id, p.inStock]));
+
+        const currentProducts = await updateProductStockNew(env);
+
+        for (const product of currentProducts) {
+            const previousStock = previousStockMap.get(product.id);
+
+            if (!previousStock && product.inStock) {
+                await notifySubscribers(env, product);
+            }
+        }
+
+        console.log('库存检查完成');
+    } catch (error) {
+        console.error('定时任务执行失败:', error);
     }
-    
-    console.log('库存检查完成');
-  } catch (error) {
-    console.error('定时任务执行失败:', error);
-  }
 }
 
 // 通知订阅者
 async function notifySubscribers(env, product) {
-  try {
-    const { keys } = await env.MONITOR_KV.list({ prefix: 'subscription:' });
-    
-    const notifications = [];
-    
-    for (const key of keys) {
-      if (key.name.includes(`:${product.id}`)) {
-        const subscriptionData = await env.MONITOR_KV.get(key.name);
-        if (subscriptionData) {
-          const subscription = JSON.parse(subscriptionData);
-          if (subscription.active) {
-            notifications.push(sendEmailNotification(env, subscription.email, product));
-          }
+    try {
+        const { keys } = await env.MONITOR_KV.list({ prefix: 'subscription:' });
+
+        const notifications = [];
+
+        for (const key of keys) {
+            if (key.name.includes(`:${product.id}`)) {
+                const subscriptionData = await env.MONITOR_KV.get(key.name);
+                if (subscriptionData) {
+                    const subscription = JSON.parse(subscriptionData);
+                    if (subscription.active) {
+                        notifications.push(sendEmailNotification(env, subscription.email, product));
+                    }
+                }
+            }
         }
-      }
+
+        await Promise.all(notifications);
+
+        console.log(`已向 ${notifications.length} 位用户发送 ${product.name} 的库存通知`);
+    } catch (error) {
+        console.error('发送通知失败:', error);
     }
-    
-    await Promise.all(notifications);
-    
-    console.log(`已向 ${notifications.length} 位用户发送 ${product.name} 的库存通知`);
-  } catch (error) {
-    console.error('发送通知失败:', error);
-  }
 }
 
 // 发送邮件通知
 async function sendEmailNotification(env, email, product) {
-  try {
-    const emailData = {
-      to: email,
-      subject: `🎉 ${product.name} 现在有库存了！`,
-      html: `
+    try {
+        const emailData = {
+            to: email,
+            subject: `🎉 ${product.name} 现在有库存了！`,
+            html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #007cba;">搬瓦工库存通知</h2>
           <p>您好！</p>
@@ -773,191 +773,191 @@ async function sendEmailNotification(env, email, product) {
           </p>
         </div>
       `
-    };
-    
-    console.log(`准备发送邮件给 ${email}:`, emailData.subject);
-    
-    if (env.SENDGRID_API_KEY) {
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.SENDGRID_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email }] }],
-          from: { email: env.ADMIN_EMAIL || 'noreply@bandwagonhost-monitor.com' },
-          subject: emailData.subject,
-          content: [{ type: 'text/html', value: emailData.html }]
-        })
-      });
-      
-      if (response.ok) {
-        console.log(`邮件发送成功给 ${email}`);
+        };
+
+        console.log(`准备发送邮件给 ${email}:`, emailData.subject);
+
+        if (env.SENDGRID_API_KEY) {
+            const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${env.SENDGRID_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    personalizations: [{ to: [{ email }] }],
+                    from: { email: env.ADMIN_EMAIL || 'noreply@bandwagonhost-monitor.com' },
+                    subject: emailData.subject,
+                    content: [{ type: 'text/html', value: emailData.html }]
+                })
+            });
+
+            if (response.ok) {
+                console.log(`邮件发送成功给 ${email}`);
+                return true;
+            } else {
+                console.error(`邮件发送失败给 ${email}:`, await response.text());
+                return false;
+            }
+        }
+
         return true;
-      } else {
-        console.error(`邮件发送失败给 ${email}:`, await response.text());
+    } catch (error) {
+        console.error(`发送邮件给 ${email} 失败:`, error);
         return false;
-      }
     }
-    
-    return true;
-  } catch (error) {
-    console.error(`发送邮件给 ${email} 失败:`, error);
-    return false;
-  }
 }
 
 // 管理后台API函数
 
 // 获取管理后台的产品列表
 async function handleAdminGetProducts(request, env) {
-  try {
-    const customProductsData = await env.MONITOR_KV.get('custom:products');
-    let products = [];
-    
-    if (customProductsData) {
-      products = JSON.parse(customProductsData);
-    } else {
-      products = getDefaultProducts().map(p => ({
-        ...p,
-        monitorUrl: p.buyUrl,
-        isDefault: true
-      }));
+    try {
+        const customProductsData = await env.MONITOR_KV.get('custom:products');
+        let products = [];
+
+        if (customProductsData) {
+            products = JSON.parse(customProductsData);
+        } else {
+            products = getDefaultProducts().map(p => ({
+                ...p,
+                monitorUrl: p.buyUrl,
+                isDefault: true
+            }));
+        }
+
+        const cachedData = await env.MONITOR_KV.get('products:cache');
+        if (cachedData) {
+            const cachedProducts = JSON.parse(cachedData);
+            const stockMap = new Map(cachedProducts.map(p => [p.id, p.inStock]));
+
+            products = products.map(p => ({
+                ...p,
+                inStock: stockMap.get(p.id) || false
+            }));
+        }
+
+        return new Response(JSON.stringify(products), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: '获取产品列表失败' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-    
-    const cachedData = await env.MONITOR_KV.get('products:cache');
-    if (cachedData) {
-      const cachedProducts = JSON.parse(cachedData);
-      const stockMap = new Map(cachedProducts.map(p => [p.id, p.inStock]));
-      
-      products = products.map(p => ({
-        ...p,
-        inStock: stockMap.get(p.id) || false
-      }));
-    }
-    
-    return new Response(JSON.stringify(products), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: '获取产品列表失败' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
 }
 
 // 添加新产品
 async function handleAdminAddProduct(request, env) {
-  try {
-    const productData = await request.json();
-    
-    if (!productData.name || !productData.monitorUrl) {
-      return new Response(JSON.stringify({ error: '产品名称和监控网址不能为空' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    try {
+        const productData = await request.json();
+
+        if (!productData.name || !productData.monitorUrl) {
+            return new Response(JSON.stringify({ error: '产品名称和监控网址不能为空' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const productId = 'custom-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+        const existingData = await env.MONITOR_KV.get('custom:products');
+        let products = existingData ? JSON.parse(existingData) : [];
+
+        const newProduct = {
+            id: productId,
+            name: productData.name,
+            monitorUrl: productData.monitorUrl,
+            buyUrl: productData.monitorUrl,
+            price: productData.price || '',
+            inStock: false,
+            createdAt: new Date().toISOString(),
+            isCustom: true
+        };
+
+        products.push(newProduct);
+
+        await env.MONITOR_KV.put('custom:products', JSON.stringify(products));
+        await env.MONITOR_KV.delete('products:cache');
+
+        return new Response(JSON.stringify({ success: true, product: newProduct }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: '添加产品失败' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-    
-    const productId = 'custom-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    
-    const existingData = await env.MONITOR_KV.get('custom:products');
-    let products = existingData ? JSON.parse(existingData) : [];
-    
-    const newProduct = {
-      id: productId,
-      name: productData.name,
-      monitorUrl: productData.monitorUrl,
-      buyUrl: productData.monitorUrl,
-      price: productData.price || '',
-      inStock: false,
-      createdAt: new Date().toISOString(),
-      isCustom: true
-    };
-    
-    products.push(newProduct);
-    
-    await env.MONITOR_KV.put('custom:products', JSON.stringify(products));
-    await env.MONITOR_KV.delete('products:cache');
-    
-    return new Response(JSON.stringify({ success: true, product: newProduct }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: '添加产品失败' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
 }
 
 // 删除产品
 async function handleAdminDeleteProduct(request, env, productId) {
-  try {
-    const existingData = await env.MONITOR_KV.get('custom:products');
-    if (!existingData) {
-      return new Response(JSON.stringify({ error: '产品不存在' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    try {
+        const existingData = await env.MONITOR_KV.get('custom:products');
+        if (!existingData) {
+            return new Response(JSON.stringify({ error: '产品不存在' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        let products = JSON.parse(existingData);
+        const originalLength = products.length;
+
+        products = products.filter(p => p.id !== productId);
+
+        if (products.length === originalLength) {
+            return new Response(JSON.stringify({ error: '产品不存在' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        await env.MONITOR_KV.put('custom:products', JSON.stringify(products));
+        await env.MONITOR_KV.delete('products:cache');
+
+        return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: '删除产品失败' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-    
-    let products = JSON.parse(existingData);
-    const originalLength = products.length;
-    
-    products = products.filter(p => p.id !== productId);
-    
-    if (products.length === originalLength) {
-      return new Response(JSON.stringify({ error: '产品不存在' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    await env.MONITOR_KV.put('custom:products', JSON.stringify(products));
-    await env.MONITOR_KV.delete('products:cache');
-    
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: '删除产品失败' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
 }
 
 // 测试单个网址
 async function handleAdminTestUrl(request, env) {
-  try {
-    const { url } = await request.json();
-    
-    if (!url) {
-      return new Response(JSON.stringify({ error: '网址不能为空' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    try {
+        const { url } = await request.json();
+
+        if (!url) {
+            return new Response(JSON.stringify({ error: '网址不能为空' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const startTime = Date.now();
+        const result = await checkProductStockNew(url);
+        const responseTime = Date.now() - startTime;
+
+        return new Response(JSON.stringify({
+            success: true,
+            inStock: result.inStock,
+            finalUrl: result.finalUrl,
+            responseTime: responseTime,
+            hasOutOfStockElement: result.hasOutOfStockElement
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: '测试失败: ' + error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-    
-    const startTime = Date.now();
-    const result = await checkProductStockNew(url);
-    const responseTime = Date.now() - startTime;
-    
-    return new Response(JSON.stringify({
-      success: true,
-      inStock: result.inStock,
-      finalUrl: result.finalUrl,
-      responseTime: responseTime,
-      hasOutOfStockElement: result.hasOutOfStockElement
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: '测试失败: ' + error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
 }
