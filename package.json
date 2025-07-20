@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --env=\"\"",
+    "test": "node test.js",
     "build": "npm run build:worker && npm run build:pages",
     "build:worker": "wrangler deploy --dry-run",
     "build:pages": "npm run generate-static"
